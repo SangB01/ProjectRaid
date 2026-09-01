@@ -57,24 +57,6 @@ namespace Craft {
 			return nullptr;
 		}
 
-		// 지정한 타입의 액터를 모두 검색하는 함수
-		template<typename T,
-			typename = std::enable_if_t<std::is_base_of<Actor, T>::value>>
-			std::vector<std::shared_ptr<T>> FindActors() const {
-			std::vector<std::shared_ptr<T>> foundActors;
-
-			for (const auto& actor : actorList) {
-				std::shared_ptr<T> targetActor
-					= std::dynamic_pointer_cast<T>(actor);
-
-				if (targetActor) {
-					foundActors.emplace_back(targetActor);
-				}
-			}
-
-			return foundActors;
-		}
-
 		// Getter
 		inline bool HasInitialized() const { return hasInitialized; }
 
