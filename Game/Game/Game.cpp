@@ -2,9 +2,12 @@
 #include <Level/MainLevel.h>
 #include <Level/RaidLevel.h>
 #include <Level/Menu.h>
+#include <Util/Util.h>
 
 Game::Game()
 {
+    Util::SetRandomSeed();
+
     // 두 레벨 생성 및 배열에 추가
     levelList.emplace_back(std::make_shared<MainLevel>());
     levelList.emplace_back(std::make_shared<RaidLevel>());

@@ -51,8 +51,9 @@ std::vector<Vector2> AStar::FindPath(const RaidMap& map, const Vector2& start, c
 
     openList.emplace_back(startNode);
 
-    // 상 / 하 / 좌 / 우
-    const Vector2 directions[] = {Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)};
+    // 상 / 하 / 좌 / 우 / 네 방향 대각선
+    const Vector2 directions[] = {Vector2(0, -1), Vector2(0, 1),  Vector2(-1, 0), Vector2(1, 0),
+                                  Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)};
 
     while (!openList.empty())
     {
@@ -113,14 +114,28 @@ std::vector<Vector2> AStar::FindPath(const RaidMap& map, const Vector2& start, c
                 continue;
             }
 
+            const bool isDiagonal = direction.x != 0 && direction.y != 0;
+
+            if (isDiagonal)
+            {
+                const Vector2 horizontalPosition = currentNode.position + Vector2(direction.x, 0);
+                const Vector2 verticalPosition = currentNode.position + Vector2(0, direction.y);
+
+                if (!map.IsWalkable(horizontalPosition) || !map.IsWalkable(verticalPosition) ||
+                    IsBlocked(horizontalPosition, blockedPositions) || IsBlocked(verticalPosition, blockedPositions))
+                {
+                    continue;
+                }
+            }
+
             // 이미 탐색 완료.
             if (FindNodeIndex(closedList, nextPosition) != -1)
             {
                 continue;
             }
 
-            // 한 칸 이동 비용 = 1
-            const int newGCost = currentNode.gCost + 1;
+            const int moveCost = isDiagonal ? 14 : 10;
+            const int newGCost = currentNode.gCost + moveCost;
 
             const int openIndex = FindNodeIndex(openList, nextPosition);
 
@@ -173,7 +188,10 @@ int AStar::CalculateHCost(const Vector2& current, const Vector2& end)
 
     const int distanceY = std::abs(end.y - current.y);
 
-    return distanceX + distanceY;
+    const int diagonalDistance = distanceX < distanceY ? distanceX : distanceY;
+    const int straightDistance = std::abs(distanceX - distanceY);
+
+    return diagonalDistance * 14 + straightDistance * 10;
 }
 
 int AStar::FindNodeIndex(const std::vector<Node>& list, const Vector2& position)

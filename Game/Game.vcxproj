@@ -88,6 +88,8 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Actor\Boss.cpp" />
+    <ClCompile Include="Actor\Minion.cpp" />
     <ClCompile Include="Actor\Player.cpp" />
     <ClCompile Include="Game\Game.cpp" />
     <ClCompile Include="Level\MainLevel.cpp" />
@@ -99,6 +101,8 @@
     <ClCompile Include="UI\Button.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Actor\Boss.h" />
+    <ClInclude Include="Actor\Minion.h" />
     <ClInclude Include="Actor\Player.h" />
     <ClInclude Include="Game\Game.h" />
     <ClInclude Include="Level\MainLevel.h" />

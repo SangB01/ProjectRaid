@@ -38,7 +38,8 @@ class Player : public Actor
 
     int GetHealth() const;
 
-    int Damage() const;
+    void TakeDamage(int damage);
+    bool IsDead() const;
 
     void SetSelected(bool selected);
 

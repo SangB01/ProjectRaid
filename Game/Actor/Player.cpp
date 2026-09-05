@@ -93,9 +93,30 @@ int Player::GetHealth() const
     return health;
 }
 
-int Player::Damage() const
+void Player::TakeDamage(int damage)
 {
-    return 0;
+    if (damage <= 0 || IsDead())
+    {
+        return;
+    }
+
+    health -= damage;
+
+    if (health > 0)
+    {
+        return;
+    }
+
+    health = 0;
+    ClearPath();
+    ClearReservedPath();
+    SetSelected(false);
+    Destroy();
+}
+
+bool Player::IsDead() const
+{
+    return health <= 0;
 }
 
 void Player::SetSelected(bool selected)
