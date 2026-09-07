@@ -5,9 +5,11 @@
 #include <array>
 #include <functional>
 
-enum class ResultAction { Restart, MainMenu, Exit };
+using namespace Craft;
 
-class ResultLevel : public Craft::Level
+enum class ResultAction { Restart, MainMenu, Ranking, Exit };
+
+class ResultLevel : public Level
 {
     friend class RaidLevelCardTests;
 
@@ -21,14 +23,14 @@ class ResultLevel : public Craft::Level
   private:
     void SelectIndex(int index);
     void Activate(ResultAction action);
-    int FindButtonAt(const Craft::Vector2& position) const;
-    void DrawCentered(const std::wstring& text, int y, Craft::Color color) const;
+    int FindButtonAt(const Vector2& position) const;
+    void DrawCentered(const std::wstring& text, int y, Color color) const;
 
     BattleResult result;
     OnAction onAction;
-    std::array<Button, 3> buttons;
+    std::array<Button, 4> buttons;
     int selectedIndex = 0;
     bool hasRequestedAction = false;
     bool hasMousePosition = false;
-    Craft::Vector2 previousMousePosition = Craft::Vector2::Zero;
+    Vector2 previousMousePosition = Craft::Vector2::Zero;
 };

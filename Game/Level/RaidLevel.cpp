@@ -1725,7 +1725,7 @@ void RaidLevel::Interface()
 		Renderer::Get().Submit(actionText.substr(0, 20), Vector2(interfaceX + 5, boxY + 2), Color::Cyan, 10);
 	}
 
-	const std::wstring minionText = L"S:" + std::to_wstring(GetActiveMinionCount()) + L"/4  T:" + std::to_wstring(GetTurretCount()) + L"/3";
+	const std::wstring minionText = L"Turret:" + std::to_wstring(GetTurretCount()) + L"/3";
 	Renderer::Get().Submit(minionText, Vector2(interfaceX + 5, interfaceY + 26), Color::Purple, 10);
 
 	if (turnEndButton)

@@ -9,7 +9,7 @@ using namespace Craft;
 ResultLevel::ResultLevel(const BattleResult& result, OnAction onAction)
     : result(result), onAction(std::move(onAction)),
       buttons{Button(L"Restart", Vector2(62, 23), 30, 4), Button(L"Main Menu", Vector2(62, 28), 30, 4),
-              Button(L"Exit", Vector2(62, 33), 30, 4)}
+              Button(L"Ranking", Vector2(62, 33), 30, 4), Button(L"Exit", Vector2 (62, 38), 30 , 4)}
 {
     SelectIndex(0);
 }
@@ -82,12 +82,6 @@ void ResultLevel::Tick(float deltaTime)
     {
         SelectIndex(selectedIndex + 1);
     }
-
-    if (input.GetKeyDown(VK_LBUTTON) && hoveredIndex >= 0)
-    {
-        SelectIndex(hoveredIndex);
-        Activate(static_cast<ResultAction>(selectedIndex));
-    }
     else if (input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_RETURN))
     {
         Activate(static_cast<ResultAction>(selectedIndex));
@@ -126,5 +120,5 @@ void ResultLevel::Draw()
         button.Draw();
     }
     Renderer::Get().Submit(L">", Vector2(59, 25 + selectedIndex * 5), Color::Green, 10);
-    DrawCentered(std::wstring(64, L'='), 39, color);
+    DrawCentered(std::wstring(64, L'='), 45, color);
 }

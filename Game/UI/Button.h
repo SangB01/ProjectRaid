@@ -4,14 +4,16 @@
 
 #include <string>
 
+using namespace Craft;
+
 class Button
 {
   public:
-    Button(const std::wstring& text, const Craft::Vector2& position, int width, int height);
+    Button(const std::wstring& text, const Vector2& position, int width, int height);
 
     void Draw() const;
 
-    bool Contains(const Craft::Vector2& point) const;
+    bool Contains(const Vector2& point) const;
     bool IsHovered() const;
     bool IsClicked() const;
 
@@ -21,15 +23,15 @@ class Button
 
   private:
     std::wstring text;
-    Craft::Vector2 position;
+    Vector2 position;
 
     int width = 0;
     int height = 0;
 
-    Craft::Color normalColor = Craft::Color::White;
-    Craft::Color hoverColor = Craft::Color::Green;
-    Craft::Color pressedColor = Craft::Color::Yellow;
-    Craft::Color disabledColor = Craft::Color::Blue;
+    Color normalColor = Color::White;
+    Color hoverColor = Color::Green;
+    Color pressedColor = Color::Yellow;
+    Color disabledColor = Color::Blue;
 
     bool enabled = true;
     bool selected = false;
