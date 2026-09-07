@@ -37,7 +37,7 @@ template <typename T, typename U> std::shared_ptr<T> Cast(const std::shared_ptr<
     }
     return nullptr;
 }
-} // namespace Craft
+}
 
 #define TYPE_DECLARATIONS(Type, ParentType)                                                                            \
     using super = ParentType;                                                                                          \

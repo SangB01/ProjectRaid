@@ -72,4 +72,4 @@ class CRAFT_API Engine
     std::unique_ptr<Renderer> renderer;
 };
 
-} // namespace Craft
+}

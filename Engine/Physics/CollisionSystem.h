@@ -28,4 +28,4 @@ class CollisionSystem
     // 두 액터가 충돌했는지 확인(테스트)하는 함수.
     bool Test(const std::shared_ptr<Actor>& left, const std::shared_ptr<Actor>& right);
 };
-} // namespace Craft
+}

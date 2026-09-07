@@ -39,4 +39,4 @@ inline float RandomRange(float min, float max)
     // 난수 반환
     return distribution(GetRandomEngine());
 }
-}; // namespace Util
+};

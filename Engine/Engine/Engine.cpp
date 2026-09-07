@@ -260,4 +260,4 @@ void Engine::LoadEngineSetting()
     file = nullptr;
 }
 
-} // namespace Craft
+}

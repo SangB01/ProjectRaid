@@ -53,4 +53,4 @@ void Actor::SetPosition(const Vector2& newPosition)
 
     position = newPosition;
 }
-} // namespace Craft
+}

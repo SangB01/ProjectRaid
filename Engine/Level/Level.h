@@ -54,7 +54,6 @@ class CRAFT_API Level : public CraftObject, public std::enable_shared_from_this<
         return nullptr;
     }
 
-    // Getter
     inline bool HasInitialized() const
     {
         return hasInitialized;
@@ -76,4 +75,4 @@ class CRAFT_API Level : public CraftObject, public std::enable_shared_from_this<
 
     std::vector<std::shared_ptr<Actor>> addRequestedActorList;
 };
-} // namespace Craft
+}

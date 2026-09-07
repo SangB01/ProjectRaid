@@ -105,10 +105,16 @@ void ResultLevel::Draw()
     const Color color = victory ? Color::Green : Color::Red;
     DrawCentered(std::wstring(64, L'='), 8, color);
     DrawCentered(victory ? L"VICTORY" : L"DEFEAT", 11, color);
-    DrawCentered(victory ? L"The boss has been defeated." : L"All players have fallen. Try another strategy.", 14, Color::White);
+
+    const int totalTimes = static_cast<int>(result.elapsedTimeSeconds);
+
+    const int min = totalTimes / 60;
+    const int sec = totalTimes % 60;
+
+    const std::wstring timeText = L"Play Time: " + std::to_wstring(min) + L":" + std::to_wstring(sec);
+    DrawCentered(timeText, 15, Color::Yellow);
 
     const auto survivors = std::count_if(result.playerHealth.begin(), result.playerHealth.end(), [](int health) { return health > 0; });
-    DrawCentered(L"Survivors: " + std::to_wstring(survivors) + L" / 4    Boss HP: " + std::to_wstring(result.bossHealth), 17, Color::Cyan);
     std::wstring playerStatus;
     for (int index = 0; index < static_cast<int>(result.playerHealth.size()); ++index)
     {
@@ -121,5 +127,4 @@ void ResultLevel::Draw()
     }
     Renderer::Get().Submit(L">", Vector2(59, 25 + selectedIndex * 5), Color::Green, 10);
     DrawCentered(std::wstring(64, L'='), 39, color);
-    DrawCentered(L"Up / Down: select   Space / Enter / Left-click: confirm   ESC: main menu", 42, Color::White);
 }

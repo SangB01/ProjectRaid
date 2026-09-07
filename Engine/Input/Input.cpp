@@ -230,4 +230,4 @@ bool Input::UpdateMousePositionFromConsoleInput()
     return receivedMouseEvent || shouldRestoreConsoleMode;
 }
 
-} // namespace Craft
+}

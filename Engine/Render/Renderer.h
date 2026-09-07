@@ -69,7 +69,6 @@ class CRAFT_API Renderer
     // 그린 결과를 화면에 표시하는 함수
     void Present();
 
-    // Getter
     const ScreenBuffer* const GetCurrentBuffer() const;
 
   private:
@@ -93,4 +92,4 @@ class CRAFT_API Renderer
     int currentBufferIndex = 0;
 };
 
-} // namespace Craft
+}

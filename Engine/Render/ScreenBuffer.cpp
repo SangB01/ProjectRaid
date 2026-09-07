@@ -70,4 +70,4 @@ void ScreenBuffer::Draw(const CHAR_INFO* const charInfo) const
 
     assert(result == TRUE);
 }
-} // namespace Craft
+}

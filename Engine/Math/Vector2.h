@@ -42,4 +42,4 @@ class CRAFT_API Vector2
     int y = 0;
 };
 
-} // namespace Craft
+}

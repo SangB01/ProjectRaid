@@ -76,15 +76,11 @@ bool RaidLevel::TryReserveSelectedCard(const std::shared_ptr<Actor>& target, con
 
     if (owner && owner != selectedPlayer)
     {
-        cardMessage = L"This card is already reserved by Player " + std::to_wstring(owner->GetPlayerIndex()) + L".";
         return false;
     }
 
     if (!CanUseCard(card, *selectedPlayer, target, position, true))
     {
-        cardMessage = card.type == CardType::Fireball && IsValidCardTarget(card, target) ?
-            L"Fireball blocked by an obstacle. Choose an enemy with a clear line of fire. SPACE: cancel." :
-            L"Cannot reserve here. " + GetTargetingHint(card);
         return false;
     }
 
@@ -95,7 +91,6 @@ bool RaidLevel::TryReserveSelectedCard(const std::shared_ptr<Actor>& target, con
 
     ResetCardTargeting();
     ClearMovementPreview();
-    cardMessage = std::wstring(card.GetDefinition().name) + L" reserved. SPACE: cancel. Right-click to replace with movement.";
     return true;
 }
 
@@ -127,15 +122,10 @@ void RaidLevel::HandleCardTargetClick(const Vector2& position)
         if (IsValidCardTarget(card, clickedPlayer) && clickedPlayer != selectedPlayer)
         {
             pendingCardTarget = clickedPlayer;
-            cardMessage = L"Target: Player " + std::to_wstring(clickedPlayer->GetPlayerIndex()) + L". Click a green destination cell. SPACE: cancel.";
         }
         else if (auto target = pendingCardTarget.lock())
         {
             TryReserveSelectedCard(target, position);
-        }
-        else
-        {
-            cardMessage = GetTargetingHint(card);
         }
         break;
     }
@@ -218,17 +208,8 @@ bool RaidLevel::ProcessCardInput()
         if (isSelectingCardTarget)
         {
             ResetCardTargeting();
-            cardMessage = L"Target selection canceled.";
         }
-        else if (!selectedPlayer || !selectedPlayer->IsActive())
-        {
-            cardMessage = L"Left-click a player first.";
-        }
-        else if (cardCount == 0)
-        {
-            cardMessage = L"No cards left. Three cards are drawn at the start of the next turn.";
-        }
-        else
+        else if (selectedPlayer && selectedPlayer->IsActive() && cardCount > 0)
         {
             const Card& card = cardHand.GetCards()[selectedCardIndex];
             const std::shared_ptr<Player> owner = FindCardOwner(card.id);
@@ -236,17 +217,11 @@ bool RaidLevel::ProcessCardInput()
             if (owner == selectedPlayer)
             {
                 selectedPlayer->ClearReservedCard();
-                cardMessage = L"Card reservation canceled. The card remains in your hand.";
             }
-            else if (owner)
-            {
-                cardMessage = L"This card is reserved by Player " + std::to_wstring(owner->GetPlayerIndex()) + L".";
-            }
-            else
+            else if (!owner)
             {
                 isSelectingCardTarget = true;
                 pendingCardTarget.reset();
-                cardMessage = GetTargetingHint(card);
             }
         }
 
@@ -293,11 +268,6 @@ void RaidLevel::ProcessPlayerCards(float deltaTime)
         if (caster && ApplyCardEffect(activeCard, *caster, target, activeCardPosition))
         {
             cardHand.RemoveCard(activeCard.id);
-            cardMessage = L"Player " + std::to_wstring(caster->GetPlayerIndex()) + L" used " + activeCard.GetDefinition().name + L".";
-        }
-        else
-        {
-            cardMessage = L"Target no longer valid. The card stays in your hand.";
         }
 
         const int cardCount = static_cast<int>(cardHand.GetCards().size());
@@ -324,7 +294,6 @@ void RaidLevel::ProcessPlayerCards(float deltaTime)
         const auto position = player->GetReservedCardPosition();
         player->ClearReservedCard();
 
-        // Movement and earlier cards may invalidate a target or a placement. Keep the card in that case.
         if (!card || !CanUseCard(*card, *player, target, position, false))
         {
             continue;
@@ -338,7 +307,6 @@ void RaidLevel::ProcessPlayerCards(float deltaTime)
         cardEffectEnd = position.value_or(target->GetPosition());
         cardEffectTimer = 0.0f;
         isCardInFlight = true;
-        cardMessage = L"Player " + std::to_wstring(player->GetPlayerIndex()) + L" uses " + activeCard.GetDefinition().name + L"...";
         return;
     }
 
@@ -355,14 +323,12 @@ bool RaidLevel::CheckBattleEnd()
     if (boss && boss->IsDead())
     {
         turnState = TurnState::Victory;
-        cardMessage = L"Victory! The boss is defeated.";
     }
     else if (!players.empty() && std::none_of(players.begin(), players.end(), [](const std::shared_ptr<Player>& player) {
                  return player && player->IsActive();
              }))
     {
         turnState = TurnState::Defeat;
-        cardMessage = L"Defeat. All players have fallen.";
     }
     else
     {
@@ -405,12 +371,12 @@ bool RaidLevel::CheckBattleEnd()
         turnEndButton->SetEnabled(false);
     }
 
-    // Notify once after stopping all actions. Game applies the transition at the frame boundary.
     if (onBattleEnded)
     {
         BattleResult result;
         result.outcome = turnState == TurnState::Victory ? BattleOutcome::Victory : BattleOutcome::Defeat;
         result.bossHealth = boss ? boss->GetHealth() : 0;
+        result.elapsedTimeSeconds = elapsedTime;
         for (int index = 0; index < static_cast<int>(players.size()) && index < static_cast<int>(result.playerHealth.size()); ++index)
         {
             result.playerHealth[index] = players[index] ? players[index]->GetHealth() : 0;

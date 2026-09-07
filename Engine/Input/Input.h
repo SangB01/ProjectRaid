@@ -74,4 +74,4 @@ class CRAFT_API Input
     bool consoleRightMouseDown = false;
 };
 
-} // namespace Craft
+}

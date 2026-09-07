@@ -174,7 +174,6 @@ void Player::TakeDamage(int damage)
     ClearReservedPath();
     ClearReservedCard();
     SetSelected(false);
-    // Keep the player registered with the level so Revive can reactivate the same actor.
     isActive = false;
 }
 

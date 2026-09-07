@@ -76,7 +76,6 @@ bool CollisionSystem::Test(const std::shared_ptr<Actor>& left, const std::shared
         return false;
     }
 
-    // AABB (Axis Aligned Bounding Box).
     // y는 크기가 1이기 때문에 x좌표만 고려.
 
     // left 액터의 현재/이전 위치.
@@ -130,4 +129,4 @@ bool CollisionSystem::Test(const std::shared_ptr<Actor>& left, const std::shared
     // 충돌 발생.
     return true;
 }
-} // namespace Craft
+}

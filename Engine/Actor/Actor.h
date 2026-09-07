@@ -34,7 +34,6 @@ class CRAFT_API Actor : public CraftObject
     // 게임(엔진) 종료 함수.
     void QuitGame();
 
-    // Getter/Setter.
     inline bool HasBeganPlay() const
     {
         return hasBeganPlay;
@@ -121,4 +120,4 @@ class CRAFT_API Actor : public CraftObject
     // 이전 프레임 위치
     Vector2 previousPosition;
 };
-} // namespace Craft
+}

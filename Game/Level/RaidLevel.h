@@ -42,7 +42,7 @@ class RaidLevel : public Level
     virtual void Tick(float deltaTime) override;
     virtual void Draw() override;
 
-  private:
+private:
     void ProcessMovementInput();
     void ProcessTurn(float deltaTime);
     void BeginPlayerTurn();
@@ -85,7 +85,6 @@ class RaidLevel : public Level
     std::shared_ptr<Player> FindPlayerChoiceAt(const Vector2& position) const;
     void HandleCardTargetClick(const Vector2& position);
     void ResetCardTargeting();
-    std::wstring GetTargetingHint(const Card& card) const;
     std::wstring GetCardTargetLabel(const Player& player) const;
     void ExecuteTurretAttacks();
     void CompleteTurnEffects();
@@ -161,8 +160,6 @@ class RaidLevel : public Level
     int selectedCardIndex = 0;
     bool isSelectingCardTarget = false;
     std::weak_ptr<Actor> pendingCardTarget;
-    std::wstring cardMessage;
-
     int nextCardPlayerIndex = 0;
     bool isCardInFlight = false;
     float cardEffectTimer = 0.0f;
@@ -180,7 +177,9 @@ class RaidLevel : public Level
 
     TurnState turnState = TurnState::PlayerPlanning;
     float bossTurnTimer = 0.0f;
+    float bossWarningBlinkTimer = 0.0f;
     bool hasBossAttackExecuted = false;
+    bool hasBossWarningBlinked = false;
     bool hasTurretsAttacked = false;
     bool hasMinionActionsStarted = false;
     bool hasMinionAttacksExecuted = false;
@@ -189,7 +188,11 @@ class RaidLevel : public Level
     bool hasUsedSpecialAt60 = false;
     bool hasUsedSpecialAt30 = false;
 
+    float elapsedTime = 0.0f;
+
     static constexpr float BossTurnDuration = 0.35f;
+    static constexpr float BossWarningBlinkHiddenDuration = 0.15f;
+    static constexpr float BossWarningBlinkDuration = 0.3f;
     static constexpr int BossLaserDirectionCount = 4;
     static constexpr int BossNearbyRadius = 2;
     static constexpr int BossConeRange = 8;

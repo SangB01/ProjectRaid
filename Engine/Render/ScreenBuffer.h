@@ -19,7 +19,6 @@ class ScreenBuffer
     // 전달된 글자 값 그리는 함수
     void Draw(const CHAR_INFO* const charInfo) const;
 
-    // Getter
     inline HANDLE GetBuffer() const
     {
         return buffer;
@@ -34,4 +33,4 @@ class ScreenBuffer
     Vector2 size;
 };
 
-} // namespace Craft
+}

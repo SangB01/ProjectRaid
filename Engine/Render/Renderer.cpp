@@ -171,4 +171,4 @@ const ScreenBuffer* const Renderer::GetCurrentBuffer() const
 {
     return screenBufferArray[currentBufferIndex].get();
 }
-} // namespace Craft
+}

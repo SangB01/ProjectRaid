@@ -18,4 +18,4 @@ enum class CRAFT_API Color : WORD
     BrightWhite = White | FOREGROUND_INTENSITY
 };
 
-} // namespace Craft
+}

@@ -15,7 +15,6 @@ Vector2 RaidLevel::GetPlannedPlayerPosition(const Player& player) const
 
 bool RaidLevel::IsOnReservedRoute(const Vector2& position, const Player* ignorePlayer) const
 {
-    // Also protect diagonal flanks so a new wall cannot invalidate a reserved step.
     const auto touchesPath = [&position](Vector2 previous, const std::vector<Vector2>& path) {
         for (const Vector2& next : path)
         {
@@ -277,25 +276,6 @@ void RaidLevel::ResetCardTargeting()
 {
     isSelectingCardTarget = false;
     pendingCardTarget.reset();
-}
-
-std::wstring RaidLevel::GetTargetingHint(const Card& card) const
-{
-    switch (card.GetDefinition().targetType)
-    {
-    case CardTargetType::Enemy:
-        return card.type == CardType::MeleeAttack ? L"Click an adjacent enemy: 5 damage around the caster. SPACE: cancel." :
-                                                  L"Click the boss or a minion with no obstacle in the line of fire. SPACE: cancel.";
-    case CardTargetType::LivingPlayer:
-        return L"Click a living player on the map or its right-side panel. SPACE: cancel.";
-    case CardTargetType::AllyDestination:
-        return L"Click another living player, then a green cell near that ally's destination. SPACE: cancel.";
-    case CardTargetType::DeadPlayer:
-        return L"Click a dead player's right-side panel, then a green cell near its death position. SPACE: cancel.";
-    case CardTargetType::AdjacentCell:
-        return L"Click a green cell next to the caster. Occupied cells and reserved routes are blocked. SPACE: cancel.";
-    }
-    return L"SPACE: cancel.";
 }
 
 std::wstring RaidLevel::GetCardTargetLabel(const Player& player) const

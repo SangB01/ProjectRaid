@@ -48,6 +48,6 @@ class Minion : public Actor
 
     int pathIndex = 0;
     float moveTimer = 0.0f;
-    float moveInterval = 0.08f;
+    float moveInterval = 0.05f;
     bool wasPlannedThisTurn = false;
 };

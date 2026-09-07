@@ -66,4 +66,4 @@ bool Vector2::operator!=(const Vector2& other) const
 {
     return !(*this == other);
 }
-} // namespace Craft
+}

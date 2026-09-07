@@ -3,6 +3,7 @@
 
 using namespace Craft;
 
+// 터렛 및 바리케이트를 생성하는 클래스
 class Deployable : public Actor
 {
     TYPE_DECLARATIONS(Deployable, Actor)
