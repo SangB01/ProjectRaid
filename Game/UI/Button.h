@@ -17,6 +17,7 @@ class Button
 
     void SetEnabled(bool newEnabled);
     bool IsEnabled() const;
+    void SetSelected(bool selected);
 
   private:
     std::wstring text;
@@ -31,4 +32,5 @@ class Button
     Craft::Color disabledColor = Craft::Color::Blue;
 
     bool enabled = true;
+    bool selected = false;
 };

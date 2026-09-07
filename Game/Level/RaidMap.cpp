@@ -5,6 +5,7 @@
 #include <Windows.h>
 
 #include <fstream>
+#include <algorithm>
 #include <iostream>
 
 using namespace Craft;
@@ -21,6 +22,7 @@ bool RaidMap::Load(const std::string& filePath)
     }
 
     mapData.clear();
+    temporaryObstacles.clear();
 
     std::string line;
 
@@ -95,6 +97,11 @@ bool RaidMap::IsWalkable(const Vector2& targetPosition) const
         return false;
     }
 
+    if (std::find(temporaryObstacles.begin(), temporaryObstacles.end(), targetPosition) != temporaryObstacles.end())
+    {
+        return false;
+    }
+
     const wchar_t tile = GetTile(targetPosition);
 
     if (tile == L'#')
@@ -127,6 +134,11 @@ bool RaidMap::IsWalkable(const Vector2& targetPosition) const
     }
 
     return true;
+}
+
+void RaidMap::SetTemporaryObstacles(const std::vector<Vector2>& positions)
+{
+    temporaryObstacles = positions;
 }
 
 wchar_t RaidMap::GetTile(const Vector2& targetPosition) const

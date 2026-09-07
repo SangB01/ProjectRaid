@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Actor/Actor.h>
 #include <Math/Vector2.h>
@@ -68,5 +68,5 @@ class Boss : public Actor
     int pathIndex = 0;
 
     float moveTimer = 0.0f;
-    float moveInterval = 0.12f;
+    float moveInterval = 0.06f;
 };

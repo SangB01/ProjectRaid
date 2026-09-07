@@ -4,6 +4,7 @@
 #include <Math/Vector2.h>
 
 #include <vector>
+#include <optional>
 
 using namespace Craft;
 
@@ -36,10 +37,23 @@ class Player : public Actor
     bool HasReservedPath() const;
     const std::vector<Vector2>& GetReservedPath() const;
 
+    bool ReserveCard(int cardId, const std::shared_ptr<Actor>& target);
+    bool ReserveCardAt(int cardId, const std::shared_ptr<Actor>& target, const Vector2& position);
+    void ClearReservedCard();
+    bool HasReservedCard() const;
+    int GetReservedCardId() const;
+    std::shared_ptr<Actor> GetReservedCardTarget() const;
+    const std::optional<Vector2>& GetReservedCardPosition() const;
+
     int GetHealth() const;
 
     void TakeDamage(int damage);
     bool IsDead() const;
+    void Heal(int amount);
+    void ApplyBarrier();
+    void ClearBarrier();
+    bool HasBarrier() const;
+    bool Revive(const Vector2& position, int restoredHealth = 5);
 
     void SetSelected(bool selected);
 
@@ -49,12 +63,17 @@ class Player : public Actor
 
   private:
     int health = MaxHealth;
+    bool hasBarrier = false;
 
     // A*가 계산한 경로.
     std::vector<Vector2> path;
 
     // 턴 종료 버튼을 누를 때 실행할 예약 경로.
     std::vector<Vector2> reservedPath;
+
+    int reservedCardId = 0;
+    std::weak_ptr<Actor> reservedCardTarget;
+    std::optional<Vector2> reservedCardPosition;
 
     // 현재 이동할 경로 인덱스.
     int pathIndex = 0;

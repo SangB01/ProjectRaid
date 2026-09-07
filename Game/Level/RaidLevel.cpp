@@ -10,10 +10,11 @@
 #include <climits>
 #include <cstdlib>
 #include <iostream>
+#include <utility>
 
 using namespace Craft;
 
-RaidLevel::RaidLevel()
+RaidLevel::RaidLevel(OnBattleEnded onBattleEnded) : onBattleEnded(std::move(onBattleEnded))
 {
     raidMap = std::make_unique<RaidMap>();
 
@@ -48,6 +49,11 @@ void RaidLevel::OnInitialized()
 
 void RaidLevel::Tick(float deltaTime)
 {
+    if (CheckBattleEnd())
+    {
+        return;
+    }
+
     if (Input::Get().GetKeyDown(VK_ESCAPE))
     {
         Game& game = dynamic_cast<Game&>(Engine::Get());
@@ -69,6 +75,17 @@ void RaidLevel::Tick(float deltaTime)
 
 void RaidLevel::ProcessTurn(float deltaTime)
 {
+    if (CheckBattleEnd())
+    {
+        return;
+    }
+
+    if (turnState == TurnState::PlayerCards)
+    {
+        ProcessPlayerCards(deltaTime);
+        return;
+    }
+
     if (turnState == TurnState::Boss)
     {
         if (boss && boss->HasPath())
@@ -77,6 +94,17 @@ void RaidLevel::ProcessTurn(float deltaTime)
         }
 
         ExecuteBossAttack();
+
+        if (CheckBattleEnd())
+        {
+            return;
+        }
+
+        ExecuteTurretAttacks();
+        if (CheckBattleEnd())
+        {
+            return;
+        }
 
         if (!hasMinionActionsStarted)
         {
@@ -90,10 +118,16 @@ void RaidLevel::ProcessTurn(float deltaTime)
         }
 
         ExecuteMinionAttacks();
+
+        if (CheckBattleEnd())
+        {
+            return;
+        }
         bossTurnTimer += deltaTime;
 
         if (bossTurnTimer >= BossTurnDuration)
         {
+            CompleteTurnEffects();
             BeginPlayerTurn();
         }
 
@@ -104,7 +138,7 @@ void RaidLevel::ProcessTurn(float deltaTime)
     {
         if (!IsAnyPlayerMoving())
         {
-            BeginBossTurn();
+            BeginPlayerCards();
         }
 
         return;
@@ -120,13 +154,16 @@ void RaidLevel::ProcessTurn(float deltaTime)
         }
         else
         {
-            BeginBossTurn();
+            BeginPlayerCards();
         }
 
         return;
     }
 
-    ProcessMovementInput();
+    if (!ProcessCardInput())
+    {
+        ProcessMovementInput();
+    }
 }
 
 void RaidLevel::BeginPlayerTurn()
@@ -134,8 +171,23 @@ void RaidLevel::BeginPlayerTurn()
     turnState = TurnState::PlayerPlanning;
     bossTurnTimer = 0.0f;
     hasBossAttackExecuted = false;
+    hasTurretsAttacked = false;
     hasMinionActionsStarted = false;
     hasMinionAttacksExecuted = false;
+    ResetCardTargeting();
+    ClearMovementPreview();
+
+    for (const std::shared_ptr<Player>& player : players)
+    {
+        if (player)
+        {
+            player->ClearReservedCard();
+        }
+    }
+
+    cardHand.DrawCards();
+    selectedCardIndex = 0;
+    cardMessage = L"Three cards drawn. Select a player, choose a card, then press SPACE.";
 
     minions.erase(std::remove_if(minions.begin(), minions.end(), [](const std::shared_ptr<Minion>& minion) {
                       return !minion || !minion->IsActive();
@@ -154,6 +206,7 @@ void RaidLevel::BeginPlayerTurn()
 void RaidLevel::BeginPlayerMovement()
 {
     turnState = TurnState::PlayerMoving;
+    ResetCardTargeting();
 
     previewPath.clear();
     hasPreviewTarget = false;
@@ -169,6 +222,7 @@ void RaidLevel::BeginBossTurn()
     turnState = TurnState::Boss;
     bossTurnTimer = 0.0f;
     hasBossAttackExecuted = false;
+    hasTurretsAttacked = false;
     hasMinionActionsStarted = false;
     hasMinionAttacksExecuted = false;
 
@@ -471,7 +525,8 @@ void RaidLevel::ExecuteBossAttack()
     for (const std::shared_ptr<Player>& player : players)
     {
         if (!player || !player->IsActive() ||
-            !ContainsPosition(boss->GetAttackWarningPositions(), player->GetPosition()))
+            !ContainsPosition(boss->GetAttackWarningPositions(), player->GetPosition()) ||
+            !HasLineOfSight(boss->GetPlannedDestination(), player->GetPosition()))
         {
             continue;
         }
@@ -597,6 +652,8 @@ void RaidLevel::Draw()
     DrawReservedPaths();
     DrawPathPreview();
     super::Draw();
+    DrawCardTargets();
+    DrawCardEffect();
     DrawTargetCursor();
     Interface();
     CardArea();
@@ -889,7 +946,7 @@ std::vector<Vector2> RaidLevel::BuildLaserAttackPositions(const Vector2& center)
                                        Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)};
     std::shuffle(directions.begin(), directions.end(), Util::GetRandomEngine());
 
-    for (int directionIndex = 0; directionIndex < 3; ++directionIndex)
+    for (int directionIndex = 0; directionIndex < BossLaserDirectionCount; ++directionIndex)
     {
         Vector2 currentPosition = center;
 
@@ -918,9 +975,9 @@ std::vector<Vector2> RaidLevel::BuildNearbyAttackPositions(const Vector2& center
         return attackPositions;
     }
 
-    for (int y = -1; y <= 1; ++y)
+    for (int y = -BossNearbyRadius; y <= BossNearbyRadius; ++y)
     {
-        for (int x = -1; x <= 1; ++x)
+        for (int x = -BossNearbyRadius; x <= BossNearbyRadius; ++x)
         {
             if (x == 0 && y == 0)
             {
@@ -962,7 +1019,7 @@ std::vector<Vector2> RaidLevel::BuildConeAttackPositions(const Vector2& center, 
 
     const Vector2 lateral(-forward.y, forward.x);
 
-    for (int depth = 1; depth <= 6; ++depth)
+    for (int depth = 1; depth <= BossConeRange; ++depth)
     {
         const int halfWidth = (depth - 1) / 2;
 
@@ -1044,6 +1101,11 @@ std::vector<Vector2> RaidLevel::BuildSpecialAttackPositions(const Vector2& cente
 
 bool RaidLevel::HasLineOfSight(const Vector2& start, const Vector2& end) const
 {
+    if (!raidMap || !raidMap->IsInside(start) || !raidMap->IsInside(end))
+    {
+        return false;
+    }
+
     int x = start.x;
     int y = start.y;
     const int distanceX = std::abs(end.x - start.x);
@@ -1054,6 +1116,7 @@ bool RaidLevel::HasLineOfSight(const Vector2& start, const Vector2& end) const
 
     while (x != end.x || y != end.y)
     {
+        const Vector2 previous(x, y);
         const int doubledError = error * 2;
 
         if (doubledError > -distanceY)
@@ -1069,6 +1132,13 @@ bool RaidLevel::HasLineOfSight(const Vector2& start, const Vector2& end) const
         }
 
         const Vector2 currentPosition(x, y);
+
+        // Use the same closed-corner rule as diagonal movement: shots cannot slip through wall corners.
+        if (previous.x != x && previous.y != y &&
+            (!raidMap->IsWalkable(Vector2(previous.x, y)) || !raidMap->IsWalkable(Vector2(x, previous.y))))
+        {
+            return false;
+        }
 
         if (currentPosition != end && !raidMap->IsWalkable(currentPosition))
         {
@@ -1098,19 +1168,6 @@ void RaidLevel::ProcessMovementInput()
         return;
     }
 
-    if (Input::Get().GetKeyDown(VK_LBUTTON))
-    {
-        Vector2 mousePosition = Input::Get().GetMousePosition();
-
-        std::shared_ptr<Player> clickedPlayer = FindPlayerAt(mousePosition);
-
-        if (clickedPlayer)
-        {
-            SelectPlayer(clickedPlayer);
-            return;
-        }
-    }
-
     if (!selectedPlayer)
     {
         previewPath.clear();
@@ -1131,20 +1188,7 @@ void RaidLevel::ProcessMovementInput()
         hasPreviewTarget = true;
         targetPosition = mousePosition;
         previewStartPosition = playerPosition;
-        previewPath.clear();
-
-        if (raidMap->IsInside(targetPosition) && raidMap->IsWalkable(targetPosition) &&
-            targetPosition != playerPosition && !IsOccupiedByActor(targetPosition, selectedPlayer.get()))
-        {
-            const std::vector<Vector2> blockedPositions = BuildBlockedPositions(selectedPlayer.get());
-
-            std::vector<Vector2> path = AStar::FindPath(*raidMap, playerPosition, targetPosition, blockedPositions);
-
-            if (!path.empty() && static_cast<int>(path.size()) <= Player::MaxMoveDistance)
-            {
-                previewPath = path;
-            }
-        }
+        previewPath = BuildPlayerMovePath(*selectedPlayer, targetPosition);
     }
 
     // 예약한 목적지를 다시 우클릭하면 해당 예약을 취소한다.
@@ -1167,13 +1211,14 @@ void RaidLevel::ProcessMovementInput()
     }
 
     selectedPlayer->ReservePath(previewPath);
+    cardMessage = L"Movement reserved. Any previous card reservation for this player is canceled.";
     previewPath.clear();
     hasPreviewTarget = false;
 }
 
 void RaidLevel::SelectPlayer(const std::shared_ptr<Player>& player)
 {
-    if (!player)
+    if (!player || !player->IsActive())
     {
         return;
     }
@@ -1185,6 +1230,18 @@ void RaidLevel::SelectPlayer(const std::shared_ptr<Player>& player)
 
     selectedPlayer = player;
     selectedPlayer->SetSelected(true);
+    ResetCardTargeting();
+
+    const std::vector<Card>& cards = cardHand.GetCards();
+
+    for (int index = 0; index < static_cast<int>(cards.size()); ++index)
+    {
+        if (cards[index].id == player->GetReservedCardId())
+        {
+            selectedCardIndex = index;
+            break;
+        }
+    }
 
     targetPosition = selectedPlayer->GetPosition();
 
@@ -1213,6 +1270,14 @@ std::shared_ptr<Player> RaidLevel::FindPlayerAt(const Vector2& position) const
 
 bool RaidLevel::IsOccupiedByActor(const Vector2& position, const Actor* ignoreActor) const
 {
+    for (const auto& object : deployables)
+    {
+        if (object && object->IsActive() && object.get() != ignoreActor && object->GetPosition() == position)
+        {
+            return true;
+        }
+    }
+
     if (boss && boss->IsActive() && boss.get() != ignoreActor && boss->GetPosition() == position)
     {
         return true;
@@ -1250,6 +1315,15 @@ bool RaidLevel::IsOccupiedByActor(const Vector2& position, const Actor* ignoreAc
 std::vector<Vector2> RaidLevel::BuildBlockedPositions(const Actor* ignoreActor) const
 {
     std::vector<Vector2> blockedPositions;
+    const bool playerMovement = dynamic_cast<const Player*>(ignoreActor) != nullptr;
+
+    for (const auto& object : deployables)
+    {
+        if (object && object->IsActive() && object.get() != ignoreActor)
+        {
+            blockedPositions.emplace_back(object->GetPosition());
+        }
+    }
 
     if (boss && boss->IsActive() && boss.get() != ignoreActor)
     {
@@ -1285,6 +1359,18 @@ std::vector<Vector2> RaidLevel::BuildBlockedPositions(const Actor* ignoreActor) 
             continue;
         }
 
+        if (player->GetReservedCardPosition())
+        {
+            blockedPositions.emplace_back(*player->GetReservedCardPosition());
+        }
+
+        // Players pass through allies, including allies waiting at an intermediate tile.
+        // Enemy planning still treats players and their reserved routes as blockers.
+        if (playerMovement)
+        {
+            continue;
+        }
+
         blockedPositions.emplace_back(player->GetPosition());
 
         for (const Vector2& reservedPosition : player->GetReservedPath())
@@ -1309,6 +1395,28 @@ std::vector<Vector2> RaidLevel::BuildBlockedPositions(const Actor* ignoreActor) 
     }
 
     return blockedPositions;
+}
+
+std::vector<Vector2> RaidLevel::BuildPlayerMovePath(const Player& player, const Vector2& destination) const
+{
+    if (!raidMap || !player.IsActive() || !raidMap->IsWalkable(destination) ||
+        player.GetPosition() == destination || IsOccupiedByActor(destination, &player))
+    {
+        return {};
+    }
+
+    // Only the final cell must be unique. Crossing another player's path or destination is allowed in transit.
+    for (const auto& other : players)
+    {
+        if (other && other->IsActive() && other.get() != &player &&
+            other->HasReservedPath() && other->GetReservedPath().back() == destination)
+        {
+            return {};
+        }
+    }
+
+    auto path = AStar::FindPath(*raidMap, player.GetPosition(), destination, BuildBlockedPositions(&player));
+    return static_cast<int>(path.size()) <= Player::MaxMoveDistance ? path : std::vector<Vector2>{};
 }
 
 bool RaidLevel::IsAnyPlayerMoving() const
@@ -1484,6 +1592,21 @@ void RaidLevel::Interface()
         turnText = L"Turn : Moving";
         turnColor = Color::Cyan;
     }
+    else if (turnState == TurnState::PlayerCards)
+    {
+        turnText = L"Turn : Cards";
+        turnColor = Color::Yellow;
+    }
+    else if (turnState == TurnState::Victory)
+    {
+        turnText = L"VICTORY";
+        turnColor = Color::Green;
+    }
+    else if (turnState == TurnState::Defeat)
+    {
+        turnText = L"DEFEAT";
+        turnColor = Color::Red;
+    }
 
     Renderer::Get().Submit(turnText, Vector2(interfaceX + 8, interfaceY + 3), turnColor, 10);
 
@@ -1539,21 +1662,46 @@ void RaidLevel::Interface()
         }
 
         const int playerIndex = interfacePlayer ? interfacePlayer->GetPlayerIndex() : ix + 1;
-        const Color borderColor = interfacePlayer && interfacePlayer->IsSelected() ? Color::Blue : Color::White;
+        const Color borderColor = interfacePlayer && interfacePlayer->IsSelected() ? Color::Blue :
+            interfacePlayer && pendingCardTarget.lock() == interfacePlayer ? Color::Green : Color::White;
 
-        DrawBox(Vector2(interfaceX + 3, boxY), interfaceWidth - 6, 3, borderColor);
+        DrawBox(Vector2(interfaceX + 3, boxY), interfaceWidth - 6, 4, borderColor);
 
         std::wstring text = L"Player" + std::to_wstring(playerIndex) + L" HP";
 
         if (interfacePlayer)
         {
             text += L" : " + std::to_wstring(interfacePlayer->GetHealth());
+            if (interfacePlayer->HasBarrier())
+            {
+                text += L" [B]";
+            }
         }
 
         Renderer::Get().Submit(text, Vector2(interfaceX + 5, boxY + 1), Color::White, 10);
+
+        std::wstring actionText = L"Wait";
+
+        if (interfacePlayer && !interfacePlayer->IsActive())
+        {
+            actionText = L"Dead - Revive target";
+        }
+        else if (interfacePlayer && interfacePlayer->HasReservedCard())
+        {
+            if (const Card* card = cardHand.FindCard(interfacePlayer->GetReservedCardId()))
+            {
+                actionText = std::wstring(card->GetDefinition().name) + L">" + GetCardTargetLabel(*interfacePlayer);
+            }
+        }
+        else if (interfacePlayer && (interfacePlayer->HasReservedPath() || interfacePlayer->HasPath()))
+        {
+            actionText = L"Move";
+        }
+
+        Renderer::Get().Submit(actionText.substr(0, 20), Vector2(interfaceX + 5, boxY + 2), Color::Cyan, 10);
     }
 
-    const std::wstring minionText = L"Minions : " + std::to_wstring(GetActiveMinionCount()) + L" / 4";
+    const std::wstring minionText = L"S:" + std::to_wstring(GetActiveMinionCount()) + L"/4  T:" + std::to_wstring(GetTurretCount()) + L"/3";
     Renderer::Get().Submit(minionText, Vector2(interfaceX + 5, interfaceY + 26), Color::Purple, 10);
 
     if (turnEndButton)
@@ -1569,28 +1717,67 @@ void RaidLevel::CardArea()
         return;
     }
 
-    int cardX = raidMap->GetPosition().x + 5;
+    const int cardX = raidMap->GetPosition().x + 5;
+    const int cardY = raidMap->GetPosition().y + raidMap->GetHeight() + 2;
+    const int cardWidth = raidMap->GetWidth() + 28;
+    const std::vector<Card>& cards = cardHand.GetCards();
+    DrawBox(Vector2(cardX, cardY), cardWidth, 12);
 
-    int cardY = raidMap->GetPosition().y + raidMap->GetHeight() + 2;
+    const std::wstring title = L"Cards: " + std::to_wstring(cards.size()) + L" / 8  |  +3 per turn, oldest discarded if full";
+    Renderer::Get().Submit(title, Vector2(cardX + 3, cardY + 1), Color::White, 10);
+    Renderer::Get().Submit(L"Left/Right or click: card | SPACE: choose target / cancel | Left-click target or green cell: reserve",
+                           Vector2(cardX + 3, cardY + 2), Color::White, 10);
 
-    int cardWidth = raidMap->GetWidth() + 28;
-
-    int cardHeight = 8;
-
-    DrawBox(Vector2(cardX, cardY), cardWidth, cardHeight);
-
-    Renderer::Get().Submit(L"Card Area", Vector2(cardX + (cardWidth / 2) - 4, cardY + 2), Color::White, 10);
-
-    int cardCount = 8;
-    int startX = cardX + 5;
-    int cardSpacing = 15;
-
-    for (int ix = 0; ix < cardCount; ++ix)
+    for (int index = 0; index < CardHand::MaxCards; ++index)
     {
-        std::wstring cardText = L"[ Card " + std::to_wstring(ix + 1) + L" ]";
+        const Vector2 slot = GetCardSlotPosition(index);
 
-        Renderer::Get().Submit(cardText, Vector2(startX + (ix * cardSpacing), cardY + 5), Color::White, 10);
+        if (index >= static_cast<int>(cards.size()))
+        {
+            DrawBox(slot, CardSlotWidth, CardSlotHeight);
+            Renderer::Get().Submit(L"Empty", slot + Vector2(2, 2), Color::White, 10);
+            continue;
+        }
+
+        const Card& card = cards[index];
+        const std::shared_ptr<Player> owner = FindCardOwner(card.id);
+        Color borderColor = owner ? Color::Cyan : Color::White;
+
+        if (index == selectedCardIndex && turnState == TurnState::PlayerPlanning)
+        {
+            borderColor = isSelectingCardTarget ? Color::Green : Color::Blue;
+        }
+
+        DrawBox(slot, CardSlotWidth, CardSlotHeight, borderColor);
+        const std::wstring cardText = std::to_wstring(index + 1) + L" " + card.GetDefinition().name;
+        const Color rarityColor = card.GetDefinition().rarity == CardRarity::Epic ? Color::Purple :
+            card.GetDefinition().rarity == CardRarity::Rare ? Color::Cyan : Color::White;
+        Renderer::Get().Submit(cardText.substr(0, 14), slot + Vector2(1, 1), rarityColor, 10);
+        Renderer::Get().Submit(std::wstring(card.GetDefinition().description).substr(0, 14), slot + Vector2(1, 2), Color::Yellow, 10);
+
+        std::wstring reservation = std::to_wstring(card.GetDefinition().drawWeight) + L"% Available";
+
+        if (owner)
+        {
+            reservation = L"P" + std::to_wstring(owner->GetPlayerIndex());
+            reservation += L">" + GetCardTargetLabel(*owner);
+        }
+
+        Renderer::Get().Submit(reservation.substr(0, 14), slot + Vector2(1, 3), owner ? Color::Cyan : Color::White, 10);
     }
+
+    std::wstring itemHint = L"Rarity: white=Common, cyan=Rare, purple=Epic | T: turret  # (cyan): barricade | [B]: Barrier";
+    for (const auto& object : deployables)
+    {
+        if (object && object->IsActive() && object->GetPosition() == Input::Get().GetMousePosition())
+        {
+            itemHint = std::wstring(object->GetKind() == Deployable::Kind::Turret ? L"Turret" : L"Barricade") +
+                L" - " + std::to_wstring(object->GetRemainingTurns()) + L" turn(s) remaining, including the current turn.";
+            break;
+        }
+    }
+    Renderer::Get().Submit(itemHint.substr(0, cardWidth - 6), Vector2(cardX + 3, cardY + 9), Color::White, 10);
+    Renderer::Get().Submit(cardMessage.substr(0, cardWidth - 6), Vector2(cardX + 3, cardY + 10), Color::Yellow, 10);
 }
 
 void RaidLevel::DrawBox(const Vector2& position, int width, int height, Color color)

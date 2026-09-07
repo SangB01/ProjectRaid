@@ -1,4 +1,4 @@
-#include "Boss.h"
+﻿#include "Boss.h"
 
 Boss::Boss(const Vector2& startPosition) : Actor(L"B", startPosition, Color::Red)
 {
@@ -133,9 +133,12 @@ void Boss::TakeDamage(int damage)
 
     health -= damage;
 
-    if (health < 0)
+    if (health <= 0)
     {
         health = 0;
+        ClearPath();
+        ClearPlannedAction();
+        Destroy();
     }
 }
 

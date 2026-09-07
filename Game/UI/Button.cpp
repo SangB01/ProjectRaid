@@ -1,4 +1,4 @@
-#include "Button.h"
+﻿#include "Button.h"
 
 #include <Input/Input.h>
 #include <Render/Renderer.h>
@@ -21,7 +21,7 @@ void Button::Draw() const
 
     const bool isHovered = IsHovered();
     const bool isPressed = isHovered && Input::Get().GetKeyDown(VK_LBUTTON);
-    const Color drawColor = !enabled ? disabledColor : (isPressed ? pressedColor : (isHovered ? hoverColor : normalColor));
+    const Color drawColor = !enabled ? disabledColor : (isPressed ? pressedColor : (isHovered || selected ? hoverColor : normalColor));
 
     std::wstring top = L"\u250C";
     top.append(width - 2, L'\u2500');
@@ -73,4 +73,9 @@ void Button::SetEnabled(bool newEnabled)
 bool Button::IsEnabled() const
 {
     return enabled;
+}
+
+void Button::SetSelected(bool selected)
+{
+    this->selected = selected;
 }

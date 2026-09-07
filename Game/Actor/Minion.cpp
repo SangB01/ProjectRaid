@@ -1,4 +1,4 @@
-#include "Minion.h"
+﻿#include "Minion.h"
 
 Minion::Minion(const Vector2& startPosition) : Actor(L"S", startPosition, Color::Purple)
 {

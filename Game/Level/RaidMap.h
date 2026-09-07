@@ -18,6 +18,7 @@ class RaidMap
 
     bool IsWalkable(const Vector2& targetPosition) const;
     bool IsInside(const Vector2& targetPosition) const;
+    void SetTemporaryObstacles(const std::vector<Vector2>& positions);
 
     wchar_t GetTile(const Vector2& targetPosition) const;
 
@@ -33,6 +34,7 @@ class RaidMap
 
   private:
     std::vector<std::wstring> mapData;
+    std::vector<Vector2> temporaryObstacles;
 
     Vector2 position = Vector2(0, 0);
 };

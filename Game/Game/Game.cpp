@@ -2,16 +2,15 @@
 #include <Level/MainLevel.h>
 #include <Level/RaidLevel.h>
 #include <Level/Menu.h>
+#include <Level/ResultLevel.h>
 #include <Util/Util.h>
 
 Game::Game()
 {
     Util::SetRandomSeed();
 
-    // 두 레벨 생성 및 배열에 추가
-    levelList.emplace_back(std::make_shared<MainLevel>());
-    levelList.emplace_back(std::make_shared<RaidLevel>());
-    levelList.emplace_back(std::make_shared<Menu>());
+    levelList.resize(4);
+    levelList[static_cast<int>(State::MainMenu)] = std::make_shared<MainLevel>();
 
     // 시작 상태 설정
     state = State::MainMenu;
@@ -22,11 +21,48 @@ Game::Game()
 
 void Game::StartGame()
 {
-    state = State::GamePlay;
+    QueueLevel(State::GamePlay, std::make_shared<RaidLevel>([this](const BattleResult& result) { ShowBattleResult(result); }));
+    levelList[static_cast<int>(State::Result)].reset();
+    levelList[static_cast<int>(State::Menu)].reset();
+}
 
-    levelList[static_cast<int>(State::GamePlay)] = std::make_shared<RaidLevel>();
+void Game::ReturnToMainMenu()
+{
+    QueueLevel(State::MainMenu, std::make_shared<MainLevel>());
+    levelList[static_cast<int>(State::GamePlay)].reset();
+    levelList[static_cast<int>(State::Menu)].reset();
+    levelList[static_cast<int>(State::Result)].reset();
+}
 
-    mainLevel = levelList[static_cast<int>(State::GamePlay)];
+void Game::ShowBattleResult(const BattleResult& result)
+{
+    if (state != State::GamePlay)
+    {
+        return;
+    }
+    QueueLevel(State::Result, std::make_shared<ResultLevel>(result, [this](ResultAction action) {
+        switch (action)
+        {
+        case ResultAction::Restart:
+            StartGame();
+            break;
+        case ResultAction::MainMenu:
+            ReturnToMainMenu();
+            break;
+        case ResultAction::Exit:
+            Quit();
+            break;
+        }
+    }));
+    levelList[static_cast<int>(State::GamePlay)].reset();
+    levelList[static_cast<int>(State::Menu)].reset();
+}
+
+void Game::QueueLevel(State newState, const std::shared_ptr<Level>& level)
+{
+    state = newState;
+    levelList[static_cast<int>(state)] = level;
+    nextLevel = level;
 }
 
 void Game::ToggleMenu()
@@ -34,14 +70,13 @@ void Game::ToggleMenu()
     // 게임 → Pause 메뉴
     if (state == State::GamePlay)
     {
-        state = State::Menu;
+        QueueLevel(State::Menu, std::make_shared<Menu>());
     }
 
     // Pause 메뉴 → 게임
     else if (state == State::Menu)
     {
-        state = State::GamePlay;
+        QueueLevel(State::GamePlay, levelList[static_cast<int>(State::GamePlay)]);
     }
 
-    mainLevel = levelList[static_cast<int>(state)];
 }

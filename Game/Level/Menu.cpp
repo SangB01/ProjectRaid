@@ -17,11 +17,12 @@ Menu::Menu()
                                                          game.ToggleMenu();
                                                      }));
 
-    itemList.emplace_back(std::make_unique<MenuItem>(L"Quit Game",
+    itemList.emplace_back(std::make_unique<MenuItem>(L"Main Menu",
                                                      []()
                                                      {
                                                          // 게임 종료 함수 호출
-                                                         Engine::Get().ChangeLevel<MainLevel>();
+                                                         Game& game = dynamic_cast<Game&>(Engine::Get());
+                                                         game.ReturnToMainMenu();
                                                      }));
 }
 
@@ -37,6 +38,7 @@ void Menu::Tick(float deltaTime)
 
         // 인덱스 초기화
         currentIndex = 0;
+        return;
     }
     // 배열의 요소 개수
     const int length = static_cast<int>(itemList.size());

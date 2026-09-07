@@ -59,6 +59,11 @@ bool Player::HasPath() const
 
 void Player::ReservePath(const std::vector<Vector2>& newPath)
 {
+    if (!newPath.empty())
+    {
+        ClearReservedCard();
+    }
+
     reservedPath = newPath;
 }
 
@@ -88,6 +93,57 @@ const std::vector<Vector2>& Player::GetReservedPath() const
     return reservedPath;
 }
 
+bool Player::ReserveCard(int cardId, const std::shared_ptr<Actor>& target)
+{
+    if (!IsActive() || cardId <= 0 || !target)
+    {
+        return false;
+    }
+
+    ClearReservedPath();
+    reservedCardId = cardId;
+    reservedCardTarget = target;
+    reservedCardPosition.reset();
+    return true;
+}
+
+bool Player::ReserveCardAt(int cardId, const std::shared_ptr<Actor>& target, const Vector2& position)
+{
+    if (!ReserveCard(cardId, target))
+    {
+        return false;
+    }
+    reservedCardPosition = position;
+    return true;
+}
+
+void Player::ClearReservedCard()
+{
+    reservedCardId = 0;
+    reservedCardTarget.reset();
+    reservedCardPosition.reset();
+}
+
+bool Player::HasReservedCard() const
+{
+    return reservedCardId != 0;
+}
+
+int Player::GetReservedCardId() const
+{
+    return reservedCardId;
+}
+
+std::shared_ptr<Actor> Player::GetReservedCardTarget() const
+{
+    return reservedCardTarget.lock();
+}
+
+const std::optional<Vector2>& Player::GetReservedCardPosition() const
+{
+    return reservedCardPosition;
+}
+
 int Player::GetHealth() const
 {
     return health;
@@ -97,6 +153,12 @@ void Player::TakeDamage(int damage)
 {
     if (damage <= 0 || IsDead())
     {
+        return;
+    }
+
+    if (hasBarrier)
+    {
+        hasBarrier = false;
         return;
     }
 
@@ -110,8 +172,58 @@ void Player::TakeDamage(int damage)
     health = 0;
     ClearPath();
     ClearReservedPath();
+    ClearReservedCard();
     SetSelected(false);
-    Destroy();
+    // Keep the player registered with the level so Revive can reactivate the same actor.
+    isActive = false;
+}
+
+void Player::Heal(int amount)
+{
+    if (IsActive() && amount > 0)
+    {
+        health += amount;
+        if (health > MaxHealth)
+        {
+            health = MaxHealth;
+        }
+    }
+}
+
+void Player::ApplyBarrier()
+{
+    if (IsActive())
+    {
+        hasBarrier = true;
+    }
+}
+
+void Player::ClearBarrier()
+{
+    hasBarrier = false;
+}
+
+bool Player::HasBarrier() const
+{
+    return hasBarrier;
+}
+
+bool Player::Revive(const Vector2& position, int restoredHealth)
+{
+    if (!IsDead() || restoredHealth <= 0)
+    {
+        return false;
+    }
+    health = restoredHealth < MaxHealth ? restoredHealth : MaxHealth;
+    isActive = true;
+    ClearPath();
+    ClearReservedPath();
+    ClearReservedCard();
+    ClearBarrier();
+    SetSelected(false);
+    SetPosition(position);
+    SavePrevioussState();
+    return true;
 }
 
 bool Player::IsDead() const
