@@ -15,7 +15,7 @@ class Player : public Actor
   public:
     static constexpr int MaxHealth = 10;
 
-    static constexpr int MaxMoveDistance = 40;
+    static constexpr int MaxMoveDistance = 25;
 
   public:
     Player(int playerIndex, const Vector2& startPosition = Vector2::Zero);

@@ -71,6 +71,16 @@ void RaidLevel::Tick(float deltaTime)
 		return;
 	}
 
+	if (specialAttackFlashTimer > 0.0f)
+	{
+		specialAttackFlashTimer -= deltaTime;
+
+		if (specialAttackFlashTimer < 0.0f)
+		{
+			specialAttackFlashTimer = 0.0f;
+		}
+	}
+
 	ResolveBossMovementHit();
 	ResolveMinionMovementBlock();
 	ProcessTurn(deltaTime);
@@ -312,6 +322,7 @@ void RaidLevel::PlanBossAction()
 		return;
 	}
 
+	const int attackRangeBonus = GetBossRangeBonus();
 	const Boss::ActionType actionType = ChooseNormalBossAction();
 
 	if (actionType == Boss::ActionType::None)
@@ -341,7 +352,8 @@ void RaidLevel::PlanBossAction()
 
 		FindTeleportDestination(*livingPlayers[targetIndex], teleportDestination);
 
-		boss->PlanAction(actionType, {}, teleportDestination, BuildNearbyAttackPositions(teleportDestination));
+		boss->PlanAction(actionType, {}, teleportDestination,
+			BuildNearbyAttackPositions(teleportDestination, BossNearbyRadius + attackRangeBonus));
 		lastNormalBossAction = actionType;
 		return;
 	}
@@ -363,11 +375,12 @@ void RaidLevel::PlanBossAction()
 	}
 	else if (actionType == Boss::ActionType::NearbyAttack)
 	{
-		warningPositions = BuildNearbyAttackPositions(plannedDestination);
+		warningPositions = BuildNearbyAttackPositions(plannedDestination, BossNearbyRadius + attackRangeBonus);
 	}
 	else if (actionType == Boss::ActionType::ConeAttack && targetPlayer)
 	{
-		warningPositions = BuildConeAttackPositions(plannedDestination, targetPlayer->GetPosition());
+		warningPositions = BuildConeAttackPositions(plannedDestination, targetPlayer->GetPosition(),
+			BossConeRange + attackRangeBonus);
 	}
 	else if (actionType == Boss::ActionType::SummonMinions)
 	{
@@ -541,6 +554,11 @@ void RaidLevel::ExecuteBossAttack()
 	else if (actionType == Boss::ActionType::SpecialAttack)
 	{
 		damage = BossSpecialDamage;
+	}
+	
+	if (actionType == Boss::ActionType::SpecialAttack)
+	{
+		specialAttackFlashTimer = specialAttackFlashDuration;
 	}
 
 	for (const std::shared_ptr<Player>& player : players)
@@ -955,6 +973,27 @@ Boss::ActionType RaidLevel::ChooseNormalBossAction() const
 	return candidates[Util::RandomRange(0, static_cast<int>(candidates.size()) - 1)];
 }
 
+int RaidLevel::GetBossRangeBonus() const
+{
+	if (!boss)
+	{
+		return 0;
+	}
+
+	// 각 특수 패턴이 끝난 다음 일반 공격부터 범위를 확장한다.
+	if (boss->GetHealth() <= 30 && hasUsedSpecialAt30)
+	{
+		return 4;
+	}
+
+	if (boss->GetHealth() <= 60 && hasUsedSpecialAt60)
+	{
+		return 2;
+	}
+
+	return 0;
+}
+
 std::vector<Vector2> RaidLevel::BuildLaserAttackPositions(const Vector2& center) const
 {
 	std::vector<Vector2> attackPositions;
@@ -988,18 +1027,18 @@ std::vector<Vector2> RaidLevel::BuildLaserAttackPositions(const Vector2& center)
 	return attackPositions;
 }
 
-std::vector<Vector2> RaidLevel::BuildNearbyAttackPositions(const Vector2& center) const
+std::vector<Vector2> RaidLevel::BuildNearbyAttackPositions(const Vector2& center, int radius) const
 {
 	std::vector<Vector2> attackPositions;
 
-	if (!raidMap)
+	if (!raidMap || radius <= 0)
 	{
 		return attackPositions;
 	}
 
-	for (int y = -BossNearbyRadius; y <= BossNearbyRadius; ++y)
+	for (int y = -radius; y <= radius; ++y)
 	{
-		for (int x = -BossNearbyRadius; x <= BossNearbyRadius; ++x)
+		for (int x = -radius; x <= radius; ++x)
 		{
 			if (x == 0 && y == 0)
 			{
@@ -1018,11 +1057,11 @@ std::vector<Vector2> RaidLevel::BuildNearbyAttackPositions(const Vector2& center
 	return attackPositions;
 }
 
-std::vector<Vector2> RaidLevel::BuildConeAttackPositions(const Vector2& center, const Vector2& target) const
+std::vector<Vector2> RaidLevel::BuildConeAttackPositions(const Vector2& center, const Vector2& target, int range) const
 {
 	std::vector<Vector2> attackPositions;
 
-	if (!raidMap)
+	if (!raidMap || range <= 0)
 	{
 		return attackPositions;
 	}
@@ -1041,7 +1080,7 @@ std::vector<Vector2> RaidLevel::BuildConeAttackPositions(const Vector2& center, 
 
 	const Vector2 lateral(-forward.y, forward.x);
 
-	for (int depth = 1; depth <= BossConeRange; ++depth)
+	for (int depth = 1; depth <= range; ++depth)
 	{
 		const int halfWidth = (depth - 1) / 2;
 
@@ -1496,7 +1535,13 @@ void RaidLevel::DrawBossPlannedPath() const
 
 void RaidLevel::DrawBossAttackWarning() const
 {
-	if (!boss || !boss->IsActive() || boss->GetPlannedActionType() == Boss::ActionType::None)
+	if (!boss || boss->GetPlannedActionType() == Boss::ActionType::None)
+	{
+		return;
+	}
+	const bool isSpecialAttack = boss->GetPlannedActionType() == Boss::ActionType::SpecialAttack;
+
+	if (isSpecialAttack && (!hasBossAttackExecuted || specialAttackFlashTimer <= 0.0f))
 	{
 		return;
 	}
@@ -1646,34 +1691,6 @@ void RaidLevel::Interface()
 
 	Renderer::Get().Submit(bossText, Vector2(interfaceX + 5, interfaceY + 6), Color::White, 10);
 
-	std::wstring bossActionText = L"Action : None";
-
-	if (boss && boss->GetPlannedActionType() == Boss::ActionType::LaserAttack)
-	{
-		bossActionText = L"Action : Laser";
-	}
-	else if (boss && boss->GetPlannedActionType() == Boss::ActionType::NearbyAttack)
-	{
-		bossActionText = L"Action : Nearby";
-	}
-	else if (boss && boss->GetPlannedActionType() == Boss::ActionType::ConeAttack)
-	{
-		bossActionText = L"Action : Cone";
-	}
-	else if (boss && boss->GetPlannedActionType() == Boss::ActionType::TeleportAttack)
-	{
-		bossActionText = L"Action : Teleport";
-	}
-	else if (boss && boss->GetPlannedActionType() == Boss::ActionType::SummonMinions)
-	{
-		bossActionText = L"Action : Summon";
-	}
-	else if (boss && boss->GetPlannedActionType() == Boss::ActionType::SpecialAttack)
-	{
-		bossActionText = L"Action : Special";
-	}
-
-	Renderer::Get().Submit(bossActionText, Vector2(interfaceX + 5, interfaceY + 7), Color::Yellow, 10);
 
 	for (int ix = 0; ix < 4; ++ix)
 	{
@@ -1747,7 +1764,8 @@ void RaidLevel::CardArea()
 	const std::vector<Card>& cards = cardHand.GetCards();
 	DrawBox(Vector2(cardX, cardY), cardWidth, 12);
 
-	const std::wstring title = L"Cards: " + std::to_wstring(cards.size()) + L" / 8  |  +3 per turn, oldest discarded if full";
+	const std::wstring title = L"Cards: " + std::to_wstring(cards.size()) + L" / 8 " +
+		L"  |  +3 per turn";
 	Renderer::Get().Submit(title, Vector2(cardX + 3, cardY + 1), Color::White, 10);
 
 	for (int index = 0; index < CardHand::MaxCards; ++index)
@@ -1777,7 +1795,7 @@ void RaidLevel::CardArea()
 		Renderer::Get().Submit(cardText.substr(0, 14), slot + Vector2(1, 1), rarityColor, 10);
 		Renderer::Get().Submit(std::wstring(card.GetDefinition().description).substr(0, 14), slot + Vector2(1, 2), Color::Yellow, 10);
 
-		std::wstring reservation = std::to_wstring(card.GetDefinition().drawWeight) + L"% Available";
+		std::wstring reservation = std::to_wstring(card.GetDefinition().copiesPerDeck) + L" per deck";
 
 		if (owner)
 		{

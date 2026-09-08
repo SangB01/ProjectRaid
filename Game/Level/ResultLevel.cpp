@@ -76,11 +76,17 @@ void ResultLevel::Tick(float deltaTime)
     }
     if (input.GetKeyDown(VK_UP))
     {
-        SelectIndex(selectedIndex - 1);
+         SelectIndex(selectedIndex - 1);
     }
+
     else if (input.GetKeyDown(VK_DOWN))
     {
         SelectIndex(selectedIndex + 1);
+    }
+    if (input.GetKeyDown(VK_LBUTTON) && hoveredIndex >= 0)
+    {
+        SelectIndex(hoveredIndex);
+        Activate(static_cast<ResultAction>(selectedIndex));
     }
     else if (input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_RETURN))
     {
@@ -97,8 +103,8 @@ void ResultLevel::Draw()
 {
     const bool victory = result.outcome == BattleOutcome::Victory;
     const Color color = victory ? Color::Green : Color::Red;
-    DrawCentered(std::wstring(64, L'='), 8, color);
-    DrawCentered(victory ? L"VICTORY" : L"DEFEAT", 11, color);
+    DrawCentered(std::wstring(64, L'='), 6, color);
+    DrawCentered(victory ? L"VICTORY" : L"DEFEAT", 9, color);
 
     const int totalTimes = static_cast<int>(result.elapsedTimeSeconds);
 
@@ -106,7 +112,7 @@ void ResultLevel::Draw()
     const int sec = totalTimes % 60;
 
     const std::wstring timeText = L"Play Time: " + std::to_wstring(min) + L":" + std::to_wstring(sec);
-    DrawCentered(timeText, 15, Color::Yellow);
+    DrawCentered(timeText, 13, Color::Yellow);
 
     const auto survivors = std::count_if(result.playerHealth.begin(), result.playerHealth.end(), [](int health) { return health > 0; });
     std::wstring playerStatus;
@@ -114,11 +120,11 @@ void ResultLevel::Draw()
     {
         playerStatus += L"P" + std::to_wstring(index + 1) + L": " + std::to_wstring(result.playerHealth[index]) + L" HP    ";
     }
-    DrawCentered(playerStatus, 19, Color::White);
+    DrawCentered(playerStatus, 17, Color::White);
     for (const Button& button : buttons)
     {
         button.Draw();
     }
     Renderer::Get().Submit(L">", Vector2(59, 25 + selectedIndex * 5), Color::Green, 10);
-    DrawCentered(std::wstring(64, L'='), 45, color);
+    DrawCentered(std::wstring(64, L'='), 43, color);
 }

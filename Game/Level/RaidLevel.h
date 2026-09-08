@@ -79,6 +79,7 @@ private:
     bool ApplyCardEffect(const Card& card, Player& caster, const std::shared_ptr<Actor>& target,
                          const std::optional<Vector2>& position);
     bool IsAdjacent(const Vector2& first, const Vector2& second) const;
+    bool IsWithinRange(const Vector2& first, const Vector2& second, int range) const;
     Vector2 GetPlannedPlayerPosition(const Player& player) const;
     bool IsOnReservedRoute(const Vector2& position, const Player* ignorePlayer) const;
     bool CanPlaceCardAt(const Vector2& position, const Player& caster) const;
@@ -111,10 +112,11 @@ private:
     bool FindSpecialDestination(Vector2& outDestination) const;
 
     Boss::ActionType ChooseNormalBossAction() const;
+    int GetBossRangeBonus() const;
 
     std::vector<Vector2> BuildLaserAttackPositions(const Vector2& center) const;
-    std::vector<Vector2> BuildNearbyAttackPositions(const Vector2& center) const;
-    std::vector<Vector2> BuildConeAttackPositions(const Vector2& center, const Vector2& target) const;
+    std::vector<Vector2> BuildNearbyAttackPositions(const Vector2& center, int radius) const;
+    std::vector<Vector2> BuildConeAttackPositions(const Vector2& center, const Vector2& target, int range) const;
     std::vector<Vector2> BuildSummonPositions(int count, const Vector2& bossDestination) const;
     std::vector<Vector2> BuildSpecialAttackPositions(const Vector2& center) const;
 
@@ -169,11 +171,13 @@ private:
     std::optional<Vector2> activeCardPosition;
     Vector2 cardEffectStart = Vector2::Zero;
     Vector2 cardEffectEnd = Vector2::Zero;
+    float specialAttackFlashTimer = 0.0f;
 
     static constexpr int CardSlotWidth = 16;
     static constexpr int CardSlotHeight = 5;
     static constexpr int CardSlotSpacing = 17;
     static constexpr float CardEffectDuration = 0.3f;
+    static constexpr float specialAttackFlashDuration = 0.2f;
 
     TurnState turnState = TurnState::PlayerPlanning;
     float bossTurnTimer = 0.0f;
@@ -202,4 +206,5 @@ private:
     static constexpr int BossTeleportDamage = 3;
     static constexpr int BossSpecialDamage = 7;
     static constexpr int MinionChargeDamage = 2;
+    static constexpr int MeleeAttackRange = 2;
 };

@@ -177,7 +177,7 @@ void Player::TakeDamage(int damage)
     isActive = false;
 }
 
-void Player::Heal(int amount)
+void Player::Heal(int amount) 
 {
     if (IsActive() && amount > 0)
     {

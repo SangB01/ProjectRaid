@@ -4,26 +4,35 @@
 
 void CardHand::DrawCards(int count)
 {
-    int totalWeight = 0;
-    for (int type = 0; type < static_cast<int>(CardType::Count); ++type)
-    {
-        totalWeight += Card{0, static_cast<CardType>(type)}.GetDefinition().drawWeight;
-    }
-
     for (int index = 0; index < count; ++index)
     {
-        int roll = Util::RandomRange(1, totalWeight);
-        for (int type = 0; type < static_cast<int>(CardType::Count); ++type)
+        if (drawPile.empty())
         {
-            const CardType cardType = static_cast<CardType>(type);
-            roll -= Card{0, cardType}.GetDefinition().drawWeight;
-            if (roll <= 0)
-            {
-                AddCard(cardType);
-                break;
-            }
+            RefillDeck();
+        }
+
+        AddCard(drawPile.back());
+        drawPile.pop_back();
+    }
+}
+
+void CardHand::RefillDeck()
+{
+    drawPile.clear();
+    drawPile.reserve(DeckSize);
+
+    for (int type = 0; type < static_cast<int>(CardType::Count); ++type)
+    {
+        const CardType cardType = static_cast<CardType>(type);
+        const int copies = Card{0, cardType}.GetDefinition().copiesPerDeck;
+
+        for (int copy = 0; copy < copies; ++copy)
+        {
+            drawPile.emplace_back(cardType);
         }
     }
+
+    std::shuffle(drawPile.begin(), drawPile.end(), Util::GetRandomEngine());
 }
 
 void CardHand::AddCard(CardType type)
@@ -70,4 +79,9 @@ const Card* CardHand::FindCard(int cardId) const
 const std::vector<Card>& CardHand::GetCards() const
 {
     return cards;
+}
+
+int CardHand::GetRemainingDeckCount() const
+{
+    return static_cast<int>(drawPile.size());
 }

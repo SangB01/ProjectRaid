@@ -5,7 +5,13 @@
 
 bool RaidLevel::IsAdjacent(const Vector2& first, const Vector2& second) const
 {
-    return first != second && std::abs(first.x - second.x) <= 1 && std::abs(first.y - second.y) <= 1;
+    return IsWithinRange(first, second, 1);
+}
+
+bool RaidLevel::IsWithinRange(const Vector2& first, const Vector2& second, int range) const
+{
+    return range > 0 && first != second && std::abs(first.x - second.x) <= range &&
+           std::abs(first.y - second.y) <= range;
 }
 
 Vector2 RaidLevel::GetPlannedPlayerPosition(const Player& player) const
@@ -109,7 +115,7 @@ bool RaidLevel::CanUseCard(const Card& card, const Player& caster, const std::sh
     case CardType::Fireball:
         return !position && HasLineOfSight(caster.GetPosition(), target->GetPosition());
     case CardType::MeleeAttack:
-        return !position && IsAdjacent(caster.GetPosition(), target->GetPosition()) &&
+        return !position && IsWithinRange(caster.GetPosition(), target->GetPosition(), MeleeAttackRange) &&
                HasLineOfSight(caster.GetPosition(), target->GetPosition());
     case CardType::Barrier:
         return !position && targetPlayer && !targetPlayer->HasBarrier();
@@ -157,14 +163,16 @@ bool RaidLevel::ApplyCardEffect(const Card& card, Player& caster, const std::sha
         damageEnemy(target, card.GetDefinition().damage);
         break;
     case CardType::MeleeAttack:
-        if (boss && boss->IsActive() && IsAdjacent(caster.GetPosition(), boss->GetPosition()) &&
+        if (boss && boss->IsActive() &&
+            IsWithinRange(caster.GetPosition(), boss->GetPosition(), MeleeAttackRange) &&
             HasLineOfSight(caster.GetPosition(), boss->GetPosition()))
         {
             damageEnemy(boss, card.GetDefinition().damage);
         }
         for (const auto& minion : minions)
         {
-            if (minion && minion->IsActive() && IsAdjacent(caster.GetPosition(), minion->GetPosition()) &&
+            if (minion && minion->IsActive() &&
+                IsWithinRange(caster.GetPosition(), minion->GetPosition(), MeleeAttackRange) &&
                 HasLineOfSight(caster.GetPosition(), minion->GetPosition()))
             {
                 damageEnemy(minion, card.GetDefinition().damage);

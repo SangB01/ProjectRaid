@@ -23,6 +23,21 @@ class Boss : public Actor
         SpecialAttack
     };
 
+    enum class BossPhase
+    {
+        Phase1,
+        Phase2,
+        Phase3
+    };
+
+    struct BossPhaseConfig
+    {
+        int nearbyRadius;
+        int coneRange;
+        int laserDirectionCount;
+        int attackCount;
+    };
+
     static constexpr int MaxHealth = 100;
 
   public:

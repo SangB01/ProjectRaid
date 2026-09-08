@@ -37,7 +37,7 @@ struct CardDefinition
     int effectValue;
     const wchar_t* description;
     CardRarity rarity;
-    int drawWeight;
+    int copiesPerDeck;
 };
 
 struct Card
