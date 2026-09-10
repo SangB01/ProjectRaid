@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <Core/Core.h>
 #include <Math/Vector2.h>
+#include <string>
 
 namespace Craft
 {
@@ -35,6 +36,9 @@ class CRAFT_API Input
 
     // 마우스 입력 좌표 받기
     const Vector2& GetMousePosition() const;
+
+    // 현재 프레임에 콘솔에서 입력된 문자 반환
+    const std::wstring& GetTextInput() const;
 
     // 외부에서 접근이 가능하도록 하는 함수
     static Input& Get();
@@ -72,6 +76,8 @@ class CRAFT_API Input
     bool consoleLeftMouseDown = false;
     bool rightMousePressed = false;
     bool consoleRightMouseDown = false;
+
+    std::wstring textInput;
 };
 
 }

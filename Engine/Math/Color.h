@@ -15,7 +15,8 @@ enum class CRAFT_API Color : WORD
     Cyan = Green | Blue,
     Purple = Red | Blue,
     White = Red | Green | Blue,
-    BrightWhite = White | FOREGROUND_INTENSITY
+    BrightWhite = White | FOREGROUND_INTENSITY,
+    Darkgrey = FOREGROUND_INTENSITY
 };
 
 }

@@ -58,16 +58,31 @@ bool RaidMap::Load(const std::string& filePath)
 void RaidMap::Draw() const
 {
     const int height = static_cast<int>(mapData.size());
+    const auto isWall = [this](int targetX, int targetY) {
+        return targetY >= 0 && targetY < static_cast<int>(mapData.size()) && targetX >= 0 &&
+               targetX < static_cast<int>(mapData[targetY].size()) && mapData[targetY][targetX] == L'#';
+    };
 
     for (int y = 0; y < height; ++y)
     {
-        Renderer::Get().Submit(mapData[y],
+        // 충돌용 '#'은 맵 데이터에 유지하고, 화면에는 별도의 벽 모양으로 그린다.
+        std::wstring background = mapData[y];
+        std::replace(background.begin(), background.end(), L'#', L' ');
+        Renderer::Get().Submit(background, Vector2(position.x, position.y + y), Color::White, 0);
 
-                               Vector2(position.x, position.y + y),
+        for (int x = 0; x < static_cast<int>(mapData[y].size()); ++x)
+        {
+            if (mapData[y][x] != L'#')
+            {
+                continue;
+            }
 
-                               Color::White,
+            const bool surrounded = isWall(x - 1, y) && isWall(x + 1, y) &&
+                                    isWall(x, y - 1) && isWall(x, y + 1);
+            const wchar_t* wallImage = surrounded ? L"█" : L"▓";
 
-                               0);
+            Renderer::Get().Submit(wallImage, Vector2(position.x + x, position.y + y), Color::Darkgrey, 1);
+        }
     }
 }
 

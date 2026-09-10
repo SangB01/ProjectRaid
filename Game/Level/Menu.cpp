@@ -1,79 +1,155 @@
-﻿#include "Menu.h"
+#include "Menu.h"
+
 #include <Game/Game.h>
 #include <Input/Input.h>
 #include <Render/Renderer.h>
-#include <cassert>
-#include <Level/MainLevel.h>
+
+#include <Windows.h>
 
 using namespace Craft;
-Menu::Menu()
-{
-    // 메뉴 아이템 생성
-    itemList.emplace_back(std::make_unique<MenuItem>(L"Resume Game",
-                                                     []()
-                                                     {
-                                                         // 메뉴 토글 함수 호출
-                                                         Game& game = dynamic_cast<Game&>(Engine::Get());
-                                                         game.ToggleMenu();
-                                                     }));
 
-    itemList.emplace_back(std::make_unique<MenuItem>(L"Main Menu",
-                                                     []()
-                                                     {
-                                                         // 게임 종료 함수 호출
-                                                         Game& game = dynamic_cast<Game&>(Engine::Get());
-                                                         game.ReturnToMainMenu();
-                                                     }));
+namespace
+{
+constexpr int ButtonX = 60;
+constexpr int ButtonY = 19;
+constexpr int ButtonWidth = 35;
+constexpr int ButtonHeight = 5;
+constexpr int ButtonSpacing = 6;
+}
+
+Menu::Menu()
+    : buttons{Button(L"RESUME", Vector2(ButtonX, ButtonY), ButtonWidth, ButtonHeight),
+              Button(L"RESTART", Vector2(ButtonX, ButtonY + ButtonSpacing), ButtonWidth, ButtonHeight),
+              Button(L"MAIN MENU", Vector2(ButtonX, ButtonY + ButtonSpacing * 2), ButtonWidth, ButtonHeight)}
+{
+    SelectIndex(0);
 }
 
 void Menu::Tick(float deltaTime)
 {
     Level::Tick(deltaTime);
 
-    // 입력처리(위 아래 방향키, 엔터, esc 키)
-    if (Input::Get().GetKeyDown(VK_ESCAPE))
+    if (hasRequestedAction)
     {
-        Game& game = dynamic_cast<Game&>(Engine::Get());
-        game.ToggleMenu();
-
-        // 인덱스 초기화
-        currentIndex = 0;
         return;
     }
-    // 배열의 요소 개수
-    const int length = static_cast<int>(itemList.size());
-    if (Input::Get().GetKeyDown(VK_UP))
+
+    const Input& input = Input::Get();
+    const Vector2 mousePosition = input.GetMousePosition();
+    const int hoveredIndex = FindButtonAt(mousePosition);
+
+    if (!hasMousePosition || mousePosition != previousMousePosition)
     {
-        currentIndex = (currentIndex - 1 + length) % length;
-    }
-    if (Input::Get().GetKeyDown(VK_DOWN))
-    {
-        // 인덱스 돌리기 (+방향)
-        currentIndex = (currentIndex + 1) % length;
+        if (hoveredIndex >= 0)
+        {
+            SelectIndex(hoveredIndex);
+        }
+
+        previousMousePosition = mousePosition;
+        hasMousePosition = true;
     }
 
-    // 엔터 입력 처리 -> 현재 선택된 메뉴의 로직 실행
-    if (Input::Get().GetKeyDown(VK_SPACE))
+    // ESC always closes the pause menu.
+    if (input.GetKeyDown(VK_ESCAPE))
     {
-        assert(currentIndex >= 0 && currentIndex < (int)itemList.size() && itemList[currentIndex]->onSelected);
-        // 메뉴 아이템에 저장된 로직 실행
-        itemList[currentIndex]->onSelected();
+        Activate(PauseAction::Resume);
+        return;
     }
+
+    if (input.GetKeyDown(VK_UP))
+    {
+        SelectIndex(selectedIndex - 1);
+    }
+    else if (input.GetKeyDown(VK_DOWN))
+    {
+        SelectIndex(selectedIndex + 1);
+    }
+
+    if (input.GetKeyDown(VK_LBUTTON) && hoveredIndex >= 0)
+    {
+        SelectIndex(hoveredIndex);
+        Activate(static_cast<PauseAction>(selectedIndex));
+    }
+    else if (input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_RETURN))
+    {
+        Activate(static_cast<PauseAction>(selectedIndex));
+    }
+}
+
+void Menu::SelectIndex(int index)
+{
+    const int count = static_cast<int>(buttons.size());
+    selectedIndex = (index % count + count) % count;
+
+    for (int buttonIndex = 0; buttonIndex < count; ++buttonIndex)
+    {
+        buttons[buttonIndex].SetSelected(buttonIndex == selectedIndex);
+    }
+}
+
+void Menu::Activate(PauseAction action)
+{
+    if (hasRequestedAction)
+    {
+        return;
+    }
+
+    hasRequestedAction = true;
+    for (Button& button : buttons)
+    {
+        button.SetEnabled(false);
+    }
+
+    Game& game = dynamic_cast<Game&>(Engine::Get());
+    switch (action)
+    {
+    case PauseAction::Resume:
+        game.ToggleMenu();
+        break;
+    case PauseAction::Restart:
+        game.StartGame();
+        break;
+    case PauseAction::MainMenu:
+        game.ReturnToMainMenu();
+        break;
+    }
+}
+
+int Menu::FindButtonAt(const Vector2& position) const
+{
+    for (int index = 0; index < static_cast<int>(buttons.size()); ++index)
+    {
+        if (buttons[index].Contains(position))
+        {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+void Menu::DrawCentered(const std::wstring& text, int y, Color color, int sortingOrder) const
+{
+    Renderer::Get().Submit(text, Vector2((ScreenWidth - static_cast<int>(text.size())) / 2, y), color,
+                           sortingOrder);
 }
 
 void Menu::Draw()
 {
-    // 제목 그리기
-    Renderer::Get().Submit((L"RAIdW"), Vector2::Zero);
+    DrawCentered(std::wstring(64, L'='), 7, Color::Cyan);
+    DrawCentered(L"GAME PAUSED", 10, Color::Green);
+    DrawCentered(L"Select an action", 14, Color::White);
 
-    // 메뉴 아이템 그리기
-    const int count = static_cast<int>(itemList.size());
-    for (int ix = 0; ix < count; ++ix)
+    for (const Button& button : buttons)
     {
-        // 선택/미선택된 아이템 색상 처리
-        Color textColor = (ix == currentIndex) ? selectedColor : unselectedColor;
-
-        // 아이템 그리기
-        Renderer::Get().Submit(itemList[ix]->text, Vector2(0, 2 + ix), textColor);
+        button.Draw();
     }
+
+    Renderer::Get().Submit(L">>", Vector2(ButtonX - 4, ButtonY + selectedIndex * ButtonSpacing + 2),
+                           Color::Green, 10);
+    Renderer::Get().Submit(L"<<", Vector2(ButtonX + ButtonWidth + 2, ButtonY + selectedIndex * ButtonSpacing + 2),
+                           Color::Green, 10);
+
+    DrawCentered(std::wstring(64, L'='), 39, Color::Cyan);
+    DrawCentered(L"[ UP / DOWN ] SELECT     [ ENTER ] CONFIRM     [ ESC ] RESUME", 42, Color::White);
 }

@@ -68,6 +68,11 @@ const Vector2& Input::GetMousePosition() const
     return mousePosition;
 }
 
+const std::wstring& Input::GetTextInput() const
+{
+    return textInput;
+}
+
 Input& Input::Get()
 {
     assert(instance);
@@ -95,6 +100,7 @@ void Input::SavePreviousStates()
 
     leftMousePressed = false;
     rightMousePressed = false;
+    textInput.clear();
 }
 void Input::UpdateMousePosition()
 {
@@ -190,6 +196,16 @@ bool Input::UpdateMousePositionFromConsoleInput()
 
         for (DWORD ix = 0; ix < readEventCount; ++ix)
         {
+            if (inputRecords[ix].EventType == KEY_EVENT)
+            {
+                const KEY_EVENT_RECORD& keyEvent = inputRecords[ix].Event.KeyEvent;
+                if (keyEvent.bKeyDown && keyEvent.uChar.UnicodeChar != L'\0')
+                {
+                    textInput.push_back(keyEvent.uChar.UnicodeChar);
+                }
+                continue;
+            }
+
             if (inputRecords[ix].EventType != MOUSE_EVENT)
             {
                 continue;
